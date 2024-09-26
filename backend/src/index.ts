@@ -4,9 +4,10 @@ import cookieparser from 'cookie-parser';
 import dotenv from 'dotenv';
 import pool from './db/db';
 
+import { app,server } from './socket';
 import authRoutes from './routes/authRoutes'
+import contactsRoute from './routes/ContactsRoute'
 
-const app = express();
 app.use(cookieparser());
 app.use(express.json()); 
 app.use(cors());
@@ -15,6 +16,7 @@ dotenv.config();
 
 
 app.use("/api/auth",authRoutes);
+app.use("/api/contacts",contactsRoute);
 
 pool.on('connect', () => {
     try {
@@ -35,6 +37,6 @@ pool.connect((err, client, release) => {
 const key= process.env.JWT_SECRET
 console.log(key);
 
-app.listen(5000, () => { 
+server.listen(5000, () => { 
     console.log('Server is running http://localhost:5000');
 });
