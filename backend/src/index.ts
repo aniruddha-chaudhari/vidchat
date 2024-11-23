@@ -34,8 +34,6 @@ pool.connect((err, client, release) => {
     release();
 });
 
-const key= process.env.JWT_SECRET
-console.log(key);
 
 server.listen(5000, () => { 
     console.log('Server is running http://localhost:5000');
