@@ -91,10 +91,15 @@ export async function logout(req: Request, res: Response) {
 
 export const authCheck = async (req: Request, res: Response) => {
     try {
+        console.log('Checking user authentication for ID:', req.user.id);
         const user = await pool.query('SELECT id, username, email FROM users WHERE id = $1', [req.user.id]);
+        
         if (!user.rows[0]) {
+            console.log('User not found for ID:', req.user.id);
             return res.status(404).json({ msg: 'User not found' });
         }
+        
+        console.log('User authenticated successfully:', user.rows[0]);
         res.status(200).json(
             {
                 id: user.rows[0].id,
@@ -103,7 +108,7 @@ export const authCheck = async (req: Request, res: Response) => {
             }
         );
     } catch (err) {
-        console.log(err);
+        console.error('Error during authentication check:', err);
         res.status(500).json({ msg: 'Internal server error' });
     }
 };

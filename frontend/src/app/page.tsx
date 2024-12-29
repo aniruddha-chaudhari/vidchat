@@ -1,6 +1,29 @@
+'use client'
+
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useUserStore } from '@/store/user'
+import { useEffect } from 'react';
 
 function Home() {
+  const router = useRouter()
+  const {user, checkAuth, loading} = useUserStore();
+
+  useEffect(() => {
+    checkAuth()
+    if(user) {
+      router.push('/chats')
+    }
+  }, [checkAuth, user, router]);
+
+  if(loading) {
+    return (
+      <div>
+        <h1>Loading......</h1>
+      </div>
+    )
+  }
+
   return (
     <div>
       <h1>Welcome to Our Application</h1>
@@ -18,6 +41,7 @@ function Home() {
         >
           Log In
         </Link>
+       
       </div>
     </div>
   );

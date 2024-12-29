@@ -6,7 +6,7 @@ const app = express();
 const server = createServer(app);
 const io = new socketioserver(server, {
     cors: {
-        origin: ["http://localhost:5173"],
+        origin: ["http://localhost:3000"],
         methods: ["GET", "POST"],
     },
 });

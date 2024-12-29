@@ -2,11 +2,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useUserStore } from '@/store/user'
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const {login} = useUserStore()
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -16,12 +18,11 @@ export default function LoginPage() {
     // For now, we'll just simulate a delay
     await new Promise(resolve => setTimeout(resolve, 1000))
 
+    login(email, password)
     console.log('Login attempt with:', { email, password })
 
     setIsLoading(false)
-    // Redirect to dashboard after successful login
-    // You would typically do this after successful authentication
-    // window.location.href = '/dashboard'
+  
   }
 
   return (
