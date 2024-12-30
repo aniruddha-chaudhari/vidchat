@@ -1,120 +1,161 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
-import { useUserStore } from '@/store/user'
+import { Search, MoreVertical, Plus, Send, Smile, Paperclip } from 'lucide-react'
+import { contacts as initialContacts, type Contact } from '@/app/chats/contacts'
+import { AddContactModal } from '@/components/contactmodal'
 
-export default function SignupPage() {
-  const [isLoading, setIsLoading] = useState(false)
-  const [email, setEmail] = useState('')
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const {signup} = useUserStore()
+export default function ChatApp() {
+  const [contacts, setContacts] = useState(initialContacts)
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
+  const [message, setMessage] = useState('')
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setIsLoading(true)
+  const handleAddContact = (email: string) => {
+    const newContact: Contact = {
+      id: (contacts.length + 1).toString(),
+      name: email.split('@')[0], // Using email username as temporary name
+      lastMessage: 'New contact added',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    }
+    
+    setContacts([...contacts, newContact])
+    setIsModalOpen(false)
+  }
 
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    signup({ username,email, password })
-    console.log('Signup attempt with:', { email, username, password })
-
-    setIsLoading(false)
-  
+  const handleEmptyStateClick = () => {
+    setIsModalOpen(true)
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-900">
-      <div className="w-full max-w-md space-y-8 rounded-xl bg-gray-800 p-8 shadow-2xl">
-        <div className="text-center">
-          <svg className="mx-auto h-12 w-12 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-          </svg>
-          <h2 className="mt-6 text-3xl font-bold text-white">Create your account</h2>
-          <p className="mt-2 text-sm text-gray-400">
-            Start making video calls and chatting with friends
-          </p>
+    <div className="flex h-screen bg-gray-900">
+      {/* Left sidebar */}
+      <div className="w-[400px] flex flex-col border-r border-gray-700">
+        <div className="p-4 flex justify-between items-center border-b border-gray-700">
+          <h1 className="text-xl font-semibold text-white">Chats</h1>
+          <button className="p-2 hover:bg-gray-700 rounded-full">
+            <MoreVertical className="w-5 h-5 text-gray-400" />
+          </button>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-4 rounded-md shadow-sm">
-            <div>
-              <label htmlFor="email" className="sr-only">
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="w-full rounded-md bg-gray-700 px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
+        
+        {/* Search bar */}
+        <div className="p-4">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search or start new chat"
+              className="w-full bg-gray-800 text-white rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <Search className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" />
+          </div>
+        </div>
+
+        {/* Contact list or empty state */}
+        {contacts.length > 0 ? (
+          <div className="flex-1 overflow-y-auto">
+            {contacts.map((contact) => (
+              <button
+                key={contact.id}
+                onClick={() => setSelectedContact(contact)}
+                className={`w-full p-4 flex items-center gap-4 hover:bg-gray-800 border-b border-gray-700 ${
+                  selectedContact?.id === contact.id ? 'bg-gray-800' : ''
+                }`}
+              >
+                <div className="w-12 h-12 bg-gray-600 rounded-full flex items-center justify-center">
+                  <span className="text-lg text-white">{contact.name[0]}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-baseline">
+                    <h3 className="text-white font-medium truncate">{contact.name}</h3>
+                    <span className="text-sm text-gray-400 flex-shrink-0">{contact.timestamp}</span>
+                  </div>
+                  <p className="text-gray-400 text-sm truncate">{contact.lastMessage}</p>
+                </div>
+                {contact.unread && (
+                  <span className="bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {contact.unread}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div 
+            onClick={handleEmptyStateClick}
+            className="flex-1 flex items-center justify-center flex-col gap-4 p-4 cursor-pointer hover:bg-gray-800 transition-colors"
+          >
+            <Plus className="w-12 h-12 text-gray-500" />
+            <p className="text-gray-400 text-center">No contacts yet. Click to add new contacts.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Right chat window */}
+      {selectedContact ? (
+        <div className="flex-1 flex flex-col">
+          <div className="p-4 flex items-center gap-4 border-b border-gray-700">
+            <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center">
+              <span className="text-white">{selectedContact.name[0]}</span>
             </div>
-            <div>
-              <label htmlFor="username" className="sr-only">
-                Username
-              </label>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                autoComplete="username"
-                required
-                className="w-full rounded-md bg-gray-700 px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-              />
+            <div className="flex-1">
+              <h2 className="text-white font-medium">{selectedContact.name}</h2>
+              <p className="text-sm text-gray-400">Online</p>
             </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                className="w-full rounded-md bg-gray-700 px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+            <button className="p-2 hover:bg-gray-700 rounded-full">
+              <MoreVertical className="w-5 h-5 text-gray-400" />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex flex-col gap-4">
+              <div className="self-start max-w-[70%]">
+                <div className="bg-gray-800 text-white rounded-lg p-3">
+                  Hey, how are you?
+                </div>
+                <span className="text-xs text-gray-400 mt-1">2:45 PM</span>
+              </div>
+              <div className="self-end max-w-[70%]">
+                <div className="bg-blue-500 text-white rounded-lg p-3">
+                  I'm doing great! Thanks for asking.
+                </div>
+                <span className="text-xs text-gray-400 mt-1">2:46 PM</span>
+              </div>
             </div>
           </div>
 
-          <button
-            type="submit"
-            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            disabled={isLoading}
-          >
-            <span className="absolute left-0 inset-y-0 flex items-center pl-3">
-              {isLoading ? (
-                <svg className="h-5 w-5 text-blue-500 group-hover:text-blue-400 animate-spin" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              ) : (
-                <svg className="h-5 w-5 text-blue-500 group-hover:text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                </svg>
-              )}
-            </span>
-            {isLoading ? 'Signing up...' : 'Sign up'}
-          </button>
-        </form>
+          <div className="p-4 border-t border-gray-700">
+            <div className="flex items-center gap-2">
+              <button className="p-2 hover:bg-gray-700 rounded-full">
+                <Smile className="w-6 h-6 text-gray-400" />
+              </button>
+              <button className="p-2 hover:bg-gray-700 rounded-full">
+                <Paperclip className="w-6 h-6 text-gray-400" />
+              </button>
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Type a message"
+                className="flex-1 bg-gray-800 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button className="p-2 hover:bg-gray-700 rounded-full">
+                <Send className="w-6 h-6 text-blue-500 group-hover:text-blue-400" />
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-gray-400">Select a chat to start messaging</p>
+        </div>
+      )}
 
-        <p className="mt-4 text-center text-sm text-gray-400">
-          Already have an account?{" "}
-          <Link href="/login" className="font-medium text-blue-500 hover:text-blue-400">
-            Log in
-          </Link>
-        </p>
-      </div>
+      <AddContactModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleAddContact}
+      />
     </div>
   )
 }
+

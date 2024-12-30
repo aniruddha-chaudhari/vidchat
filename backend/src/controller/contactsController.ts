@@ -27,11 +27,20 @@ export async function createContact(req: Request, res: Response) {
             return res.status(404).json({ msg: 'User not found' });
         }
 
-        const newContact = await pool.query('INSERT INTO contacts (user_id, contact_id) VALUES ($1, $2) RETURNING *', [req.user.id, contact.rows[0].id]);
+        // Check if contact already exists
+        const existingContact = await pool.query(
+            'SELECT * FROM contacts WHERE user_id = $1 AND contact_id = $2',
+            [req.user.id, contact.rows[0].id]
+        );
 
-        if (!newContact.rows[0]) {
+        if (existingContact.rows.length > 0) {
             return res.status(400).json({ msg: 'Contact already exists' });
         }
+
+        const newContact = await pool.query(
+            'INSERT INTO contacts (user_id, contact_id) VALUES ($1, $2) RETURNING *',
+            [req.user.id, contact.rows[0].id]
+        );
 
         res.status(201).json({
             id: newContact.rows[0].id,

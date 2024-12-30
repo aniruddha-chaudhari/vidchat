@@ -5,6 +5,6 @@ import protectRoute from "../middleware/ProtectRoute";
 const router = Router();
 
 router.get('/getcontacts',protectRoute, getContacts);
-router.post('/createcontact', createContact);
+router.post('/createcontact',protectRoute, createContact);
 
 export default router;

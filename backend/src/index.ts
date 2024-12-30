@@ -23,6 +23,7 @@ dotenv.config();
 
 app.use("/api/auth",authRoutes);
 app.use("/api/contacts",contactsRoute);
+// app.use("/api/chats",contactsRoute);
 
 pool.on('connect', () => {
     try {
