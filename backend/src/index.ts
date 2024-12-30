@@ -7,6 +7,7 @@ import pool from './db/db';
 import { app,server } from './socket';
 import authRoutes from './routes/authRoutes'
 import contactsRoute from './routes/ContactsRoute'
+import chatRoute from './routes/ChatRoutes'
 
 app.use(cookieparser());
 app.use(express.json()); 
@@ -23,7 +24,7 @@ dotenv.config();
 
 app.use("/api/auth",authRoutes);
 app.use("/api/contacts",contactsRoute);
-// app.use("/api/chats",contactsRoute);
+app.use("/api/chats",chatRoute);
 
 pool.on('connect', () => {
     try {

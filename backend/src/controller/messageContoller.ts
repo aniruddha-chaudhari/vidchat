@@ -11,12 +11,10 @@ interface Message {
     timestamp: Date;
 }
 
- export const sendMessages = async (req: Request, res: Response) => {
+export const sendMessages = async (req: Request, res: Response) => {
     const senderId = req.user.id;
     const chatId = req.params.chatId;
     const { content } = req.body;
-
-   
 
     try {
         pool.query('BEGIN');
@@ -30,11 +28,8 @@ interface Message {
         const message: Message = messageResult.rows[0];
         await pool.query('COMMIT');
         await client.hset(`chat:${chatId}:messages`, message.id.toString(), JSON.stringify(message));
-        await client.expire(`chat:${chatId}:messages`, 36000);
-        res.status(201).json(message);
         io.to(`chat:${chatId}`).emit('new_message', message);
-        return message;
-
+        return res.status(201).json(message);
 
     } catch (err) {
         await pool.query('ROLLBACK');

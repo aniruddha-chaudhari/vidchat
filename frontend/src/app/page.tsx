@@ -7,16 +7,20 @@ import { useEffect } from 'react';
 
 function Home() {
   const router = useRouter()
-  const {user, checkAuth, loading} = useUserStore();
+  const {user, checkAuth, loading,checkingAuth} = useUserStore();
 
   useEffect(() => {
-    checkAuth()
-    if(user) {
-      router.push('/chats')
-    }
+    const delay = setTimeout(() => {
+      checkAuth()
+      if(user) {
+        router.push('/chats')
+      }
+    }, 1000);
+
+    return () => clearTimeout(delay);
   }, [checkAuth, user, router]);
 
-  if(loading) {
+  if(checkingAuth) {
     return (
       <div>
         <h1>Loading......</h1>
