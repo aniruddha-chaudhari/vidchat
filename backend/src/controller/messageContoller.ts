@@ -28,7 +28,7 @@ export const sendMessages = async (req: Request, res: Response) => {
         const message: Message = messageResult.rows[0];
         await pool.query('COMMIT');
         await client.hset(`chat:${chatId}:messages`, message.id.toString(), JSON.stringify(message));
-        io.to(`chat:${chatId}`).emit('new_message', message);
+        io.to(`chat:${chatId}`).emit('message_stored', message);
         return res.status(201).json(message);
 
     } catch (err) {
