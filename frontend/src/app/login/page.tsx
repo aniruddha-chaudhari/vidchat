@@ -3,12 +3,14 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useUserStore } from '@/store/user'
+import { useRouter } from 'next/router'
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const {login} = useUserStore()
+  const router = useRouter()
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -19,7 +21,7 @@ export default function LoginPage() {
     await new Promise(resolve => setTimeout(resolve, 1000))
 
     login(email, password)
-    console.log('Login attempt with:', { email, password })
+    router.push('/chats')
 
     setIsLoading(false)
   

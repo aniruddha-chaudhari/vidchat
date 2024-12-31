@@ -18,19 +18,34 @@ export const sendMessages = async (req: Request, res: Response) => {
 
     try {
         pool.query('BEGIN');
-        const participantCheck = await pool.query('SELECT chat_id FROM chat_participants WHERE user_id = $1 AND chat_id = $2', [senderId, chatId]);
+        const participantCheck = await pool.query(
+            'SELECT chat_id FROM chat_participants WHERE user_id = $1 AND chat_id = $2', 
+            [senderId, chatId]
+        );
+
         if (participantCheck.rows.length === 0) {
             return res.status(403).send('You are not a participant in this chat');
         }
 
-        const messageResult = await pool.query('INSERT INTO messages (chat_id,sender_id,content) values ($1,$2,$3) RETURNING id, chat_id, sender_id, content, created_at as timestamp', [chatId, senderId, content]);
+        const messageResult = await pool.query(
+            'INSERT INTO messages (chat_id,sender_id,content) values ($1,$2,$3) RETURNING *', 
+            [chatId, senderId, content]
+        );
 
-        const message: Message = messageResult.rows[0];
+        const message = messageResult.rows[0];
         await pool.query('COMMIT');
-        await client.hset(`chat:${chatId}:messages`, message.id.toString(), JSON.stringify(message));
+        
+        // Cache in Redis
+        await client.hset(
+            `chat:${chatId}:messages`,
+            message.id.toString(),
+            JSON.stringify(message)
+        );
+        
+        // Emit stored message through socket
         io.to(`chat:${chatId}`).emit('message_stored', message);
+        
         return res.status(201).json(message);
-
     } catch (err) {
         await pool.query('ROLLBACK');
         console.error('Error sending message:', err);

@@ -1,6 +1,5 @@
-import express from 'express';
 import { Server as socketioserver } from 'socket.io';
-import { createServer } from 'http';
+import { Server } from 'http';
 
 interface SocketMessage {
     chatId: number;
@@ -8,55 +7,68 @@ interface SocketMessage {
     content: string;
 }
 
-// Track online users
 const onlineUsers = new Map(); // userId -> socketId
 
-const app = express();
-const server = createServer(app);
-const io = new socketioserver(server, {
-    cors: {
-        origin: ["http://localhost:3000"],
-        methods: ["GET", "POST"],
-    },
-});
+let io: socketioserver;
 
-io.on('connection', (socket) => {
-    console.log('a user connected');
-
-    // Set user as online
-    socket.on('user_connected', (userId: number) => {
-        onlineUsers.set(userId, socket.id);
-        io.emit('user_status', { userId, status: 'online' });
+export const initializeSocket = (server: Server) => {
+    io = new socketioserver(server, {
+        cors: {
+            origin: "http://localhost:3000",
+            methods: ["GET", "POST"],
+            credentials: true,
+        },
+        transports: ['websocket', 'polling'],
+        pingTimeout: 60000,
+        pingInterval: 25000
     });
 
-    // Join a chat room
-    socket.on('join_chat', (chatId: number) => {
-        socket.join(`chat:${chatId}`);
-        console.log(`User joined chat room: chat:${chatId}`);
-    });
+    io.on('connection', (socket) => {
+        console.log('New socket connection:', {
+            id: socket.id,
+            headers: socket.handshake.headers,
+            transport: socket.conn.transport.name
+        });
 
-    // Leave a chat room
-    socket.on('leave_chat', (chatId: number) => {
-        socket.leave(`chat:${chatId}`);
-        console.log(`User left chat room: chat:${chatId}`);
-    });
+        socket.on('user_online', (userId: string | number) => {
+            // Convert userId to number if it's a string
+            const normalizedUserId = typeof userId === 'string' ? parseInt(userId) : userId;
+            console.log(`User ${normalizedUserId} is online with socket ID: ${socket.id}`);
+            onlineUsers.set(normalizedUserId, socket.id);
+            console.log('Current online users:', Array.from(onlineUsers.entries()));
+            io.emit('user_status', { userId: normalizedUserId, online: true });
+        });
 
-    // Real-time message relay
-    socket.on('new_message', (message: SocketMessage) => {
-        io.to(`chat:${message.chatId}`).emit('receive_message', message);
-    });
+        socket.on('join_chat', (chatId) => {
+            socket.join(`chat:${chatId}`);
+            console.log(`User with socket ${socket.id} joined chat room: chat:${chatId}`);
+        });
 
-    socket.on('disconnect', () => {
-        // Find and remove disconnected user
-        for (const [userId, socketId] of onlineUsers.entries()) {
-            if (socketId === socket.id) {
-                onlineUsers.delete(userId);
-                io.emit('user_status', { userId, status: 'offline' });
-                break;
+        socket.on('leave_chat', (chatId) => {
+            socket.leave(`chat:${chatId}`);
+            console.log(`User with socket ${socket.id} left chat room: chat:${chatId}`);
+        });
+
+        // Only relay messages in real-time
+        socket.on('send_message', (message: SocketMessage) => {
+            console.log('Message received:', message);
+            io.to(`chat:${message.chatId}`).emit('receive_message', message);
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Socket disconnected:', socket.id);
+            for (const [userId, socketId] of onlineUsers.entries()) {
+                if (socketId === socket.id) {
+                    console.log(`User ${userId} went offline`);
+                    onlineUsers.delete(userId);
+                    io.emit('user_status', { userId, online: false });
+                    break;
+                }
             }
-        }
-        console.log('user disconnected');
+        });
     });
-});
 
-export { io, server, app };
+    return io;
+};
+
+export { io };

@@ -5,8 +5,10 @@ import { Search, MoreVertical, Plus } from 'lucide-react'
 import { AddContactModal } from '@/components/contactmodal'
 import { ChatWindow } from '@/components/ChatWindow'
 import { useContactStore } from '@/store/contact'
+import { useCheckAuth } from '@/hooks/useCheckAuth'
 
 export default function ChatApp() {
+  const { loading } = useCheckAuth('/login')
   const { contacts, getContacts, addContact } = useContactStore()
   const [selectedContact, setSelectedContact] = useState<typeof contacts[0] | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -23,6 +25,14 @@ export default function ChatApp() {
 
   const handleEmptyStateClick = () => {
     setIsModalOpen(true)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <h1>Loading...</h1>
+      </div>
+    )
   }
 
   return (

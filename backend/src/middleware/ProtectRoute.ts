@@ -21,19 +21,19 @@ const protectRoute = async (req: Request, res: Response, next: NextFunction) => 
         const token = req.cookies['jwt-vid'];
         
         if (!token) {
-            console.log('No token found in cookies');
+            // console.log('No token found in cookies');
             return res.status(401).json({ message: 'No authentication token found' });
         }
 
-        console.log('Token found:', token);
+        // console.log('Token found:', token);
         const decoded = jwt.verify(token, process.env.JWT_SECRET!) as DecodedToken;
 
         if (!decoded) {
-            console.log('Token verification failed');
+            // console.log('Token verification failed');
             return res.status(401).json({ message: 'Invalid token' });
         }
 
-        console.log('Decoded token:', decoded);
+        // console.log('Decoded token:', decoded);
         const user = await pool.query('SELECT * FROM users WHERE id = $1', [decoded.userId]);
 
         if (!user.rows[0]) {
