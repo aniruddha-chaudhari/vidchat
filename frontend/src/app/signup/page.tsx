@@ -1,15 +1,19 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useUserStore } from '@/store/user'
+import { useCheckAuth } from '@/hooks/useCheckAuth'
+import { useRouter } from 'next/navigation'
 
 export default function SignupPage() {
+  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [email, setEmail] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const {signup} = useUserStore()
+  const { user, loading } = useCheckAuth();
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -17,11 +21,16 @@ export default function SignupPage() {
 
     await new Promise(resolve => setTimeout(resolve, 1000))
     signup({ username,email, password })
-    console.log('Signup attempt with:', { email, username, password })
-
     setIsLoading(false)
-  
   }
+
+  useEffect(() => {
+    if (!loading) {
+      if (user) {
+        router.push('/chats');
+      } 
+    }
+  }, [loading, user, router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-900">

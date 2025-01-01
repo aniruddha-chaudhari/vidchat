@@ -33,7 +33,7 @@ app.use("/api/chats",chatRoute);
 
 pool.on('connect', () => {
     try {
-        console.log('Connected to the database');
+        // console.log('Connected to the database');
     } catch (error) {
         console.log(error);
     }

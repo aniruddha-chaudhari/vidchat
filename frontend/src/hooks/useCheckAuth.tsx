@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+// import { useRouter } from 'next/navigation'; // Removed import
 import { useUserStore } from '@/store/user';
 
-export const useCheckAuth = (redirectTo: string = '/login') => {
-  const router = useRouter();
+export const useCheckAuth = () => {
+  // const router = useRouter(); // Removed router
+
   const { user, checkAuth, loading, checkingAuth } = useUserStore();
 
   useEffect(() => {
@@ -17,11 +18,6 @@ export const useCheckAuth = (redirectTo: string = '/login') => {
     initAuth();
   }, []);
 
-  useEffect(() => {
-    if (!checkingAuth && !loading && !user) {
-      router.push(redirectTo);
-    }
-  }, [checkingAuth, loading, user, router, redirectTo]);
-
+  // Removed redirect logic
   return { user, loading: loading || checkingAuth };
 };

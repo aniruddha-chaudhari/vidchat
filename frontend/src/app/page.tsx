@@ -2,36 +2,25 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useUserStore } from '@/store/user'
 import { useEffect } from 'react';
+import { useCheckAuth } from '@/hooks/useCheckAuth'; // Added import
 
 function Home() {
-  const router = useRouter()
-  const {user, checkAuth, loading, checkingAuth} = useUserStore();
+  const router = useRouter();
+  const { user, loading } = useCheckAuth(); // Updated hook usage
 
   useEffect(() => {
-    const initAuth = async () => {
-      try {
-        await checkAuth();
-      } catch (error) {
-        console.log('Auth check failed, continuing as unauthenticated');
-      }
-    };
-    initAuth();
-  }, []);
-
-  useEffect(() => {
-    if (!checkingAuth) {
+    if (!loading) {
       if (!user) {
         router.push('/login');
       } else {
         router.push('/chats');
       }
     }
-  }, [checkingAuth, user, router]);
+  }, [loading, user, router]);
 
   // Show loading state while checking authentication
-  if (checkingAuth || loading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <h1>Loading...</h1>

@@ -26,7 +26,6 @@ export async function startIndividualChat(req: Request, res: Response) {
             [chatId, senderId, receiverId]
         );
 
-        io.to(`chat:${chatId}`).emit('new_chat', { chatId, senderId, receiverId });
         return res.json({ chatId });
     } catch (err) {
         console.error('Error starting individual chat:', err);

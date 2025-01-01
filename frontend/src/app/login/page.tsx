@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useUserStore } from '@/store/user'
-import { useRouter } from 'next/router'
+import { useRouter } from 'next/navigation'
+import { useCheckAuth } from '@/hooks/useCheckAuth'
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -11,21 +12,26 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const {login} = useUserStore()
   const router = useRouter()
+  const { user, loading } = useCheckAuth();
+  
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setIsLoading(true)
 
-    // Here you would typically send the data to your backend for authentication
-    // For now, we'll just simulate a delay
     await new Promise(resolve => setTimeout(resolve, 1000))
 
     login(email, password)
-    router.push('/chats')
-
     setIsLoading(false)
-  
-  }
+   }
+
+  useEffect(() => {
+    if (!loading) {
+      if (user) {
+        router.push('/chats');
+      } 
+    }
+  }, [loading, user, router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-900">

@@ -6,14 +6,21 @@ import { AddContactModal } from '@/components/contactmodal'
 import { ChatWindow } from '@/components/ChatWindow'
 import { useContactStore } from '@/store/contact'
 import { useCheckAuth } from '@/hooks/useCheckAuth'
+import { useRouter } from 'next/navigation'
 
 export default function ChatApp() {
-  const { loading } = useCheckAuth('/login')
+  const { user, loading } = useCheckAuth();
   const { contacts, getContacts, addContact } = useContactStore()
   const [selectedContact, setSelectedContact] = useState<typeof contacts[0] | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
+    if (!loading) {
+      if (!user) {
+        router.push('/login');
+      } 
+    }
     getContacts()
   }, [getContacts])
 

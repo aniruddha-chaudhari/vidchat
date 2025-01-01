@@ -43,7 +43,7 @@ export const sendMessages = async (req: Request, res: Response) => {
         );
         
         // Emit stored message through socket
-        io.to(`chat:${chatId}`).emit('message_stored', message);
+        // io.to(`chat:${chatId}`).emit('message_stored', message);
         
         return res.status(201).json(message);
     } catch (err) {
@@ -57,7 +57,7 @@ export const sendMessages = async (req: Request, res: Response) => {
 
 export const getMessages = async (req: Request, res: Response) => {
     const chatId = parseInt(req.params.chatId);
-    const userId = req.user.id;
+    // const userId = req.user.id;
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
 

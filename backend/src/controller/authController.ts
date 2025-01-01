@@ -99,7 +99,7 @@ export const authCheck = async (req: Request, res: Response) => {
             return res.status(404).json({ msg: 'User not found' });
         }
         
-        console.log('User authenticated successfully:', user.rows[0]);
+        // console.log('User authenticated successfully:', user.rows[0]);
         res.status(200).json(
             {
                 id: user.rows[0].id,

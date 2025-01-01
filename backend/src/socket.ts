@@ -24,11 +24,6 @@ export const initializeSocket = (server: Server) => {
     });
 
     io.on('connection', (socket) => {
-        console.log('New socket connection:', {
-            id: socket.id,
-            headers: socket.handshake.headers,
-            transport: socket.conn.transport.name
-        });
 
         socket.on('user_online', (userId: string | number) => {
             // Convert userId to number if it's a string
