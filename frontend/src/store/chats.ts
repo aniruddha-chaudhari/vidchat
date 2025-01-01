@@ -64,43 +64,51 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     sendMessage: async (content: string, chatId: number) => {
         const socket = useUserStore.getState().socket;
+        console.log('Attempting to send message:', { content, chatId, socketExists: !!socket });
+        
         if (!socket) {
+            console.error('Socket connection not available');
             toast.error("No socket connection");
             return;
         }
 
         try {
-            // First save message to database
+            console.log('Making API request to save message');
             const response = await axios.post(
-                `http://localhost:5000/api/messages/${chatId}`,
+                `http://localhost:5000/api/messages/send/${chatId}`,
                 { content },
                 { withCredentials: true }
             );
 
             const savedMessage = response.data;
+            console.log('Message saved successfully:', savedMessage);
 
-            // Then emit socket event with saved message
             socket.emit('send_message', savedMessage);
+            console.log('Message emitted to socket:', savedMessage);
             
-            // Update local state with saved message
-            set((state) => ({
-                chats: state.chats.map(chat => {
-                    if (chat.id === chatId) {
-                        return {
-                            ...chat,
-                            messages: [...chat.messages, savedMessage]
-                        };
-                    }
-                    return chat;
-                }),
-                currentChat: state.currentChat?.id === chatId ? {
-                    ...state.currentChat,
-                    messages: [...state.currentChat.messages, savedMessage]
-                } : state.currentChat
-            }));
+            set((state) => {
+                console.log('Updating local state with new message');
+                return {
+                    chats: state.chats.map(chat => {
+                        if (chat.id === chatId) {
+                            console.log('Found matching chat, updating messages');
+                            return {
+                                ...chat,
+                                messages: [...chat.messages, savedMessage]
+                            };
+                        }
+                        return chat;
+                    }),
+                    currentChat: state.currentChat?.id === chatId ? {
+                        ...state.currentChat,
+                        messages: [...state.currentChat.messages, savedMessage]
+                    } : state.currentChat
+                };
+            });
 
         } catch (error) {
             const axiosError = error as AxiosError<{ message: string }>;
+            console.error('Failed to send message:', axiosError);
             toast.error(axiosError.response?.data?.message || "Failed to send message");
         }
     },

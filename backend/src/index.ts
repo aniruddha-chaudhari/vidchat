@@ -8,6 +8,7 @@ import pool from './db/db';
 import authRoutes from './routes/authRoutes';
 import contactsRoute from './routes/ContactsRoute';
 import chatRoute from './routes/ChatRoutes';
+import messageroute from './routes/MessageRoutes'
 
 const app = express();
 const server = createServer(app);
@@ -30,6 +31,8 @@ dotenv.config();
 app.use("/api/auth",authRoutes);
 app.use("/api/contacts",contactsRoute);
 app.use("/api/chats",chatRoute);
+app.use("/api/messages",messageroute);
+
 
 pool.on('connect', () => {
     try {

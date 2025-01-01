@@ -38,8 +38,29 @@ export function ChatWindow({ contact }: ChatWindowProps) {
   }, [contact.id, startIndividualChat]);
   
 const handleonclick = () => {
+  if (!message.trim()) {
+    console.log('Message is empty, not sending');
+    return;
+  }
+  
   if (currentChat) {
+    console.log('Sending message:', {
+      content: message,
+      chatId: currentChat.id,
+      currentChat
+    });
     sendMessage(message, currentChat.id);
+    setMessage(''); // Clear the input after sending
+  } else {
+    console.log('No current chat available');
+  }
+}
+
+// Add keypress handler for Enter key
+const handleKeyPress = (e: React.KeyboardEvent) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    handleonclick();
   }
 }
 
@@ -94,6 +115,7 @@ const handleonclick = () => {
             type="text"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
+            onKeyUp={handleKeyPress}
             placeholder="Type a message"
             className="flex-1 bg-gray-800 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
