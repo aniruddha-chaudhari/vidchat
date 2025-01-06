@@ -34,14 +34,14 @@ interface ChatStore {
     chats: Chat[];
     currentChat: Chat | null;
     loading: boolean;
-    startIndividualChat: (receiverId: string) => Promise<void>;
+    startIndividualChat: (receiverId: string) => Promise<Chat | null>;  // Updated return type
     sendMessage: (content: string, chatId: number) => void;
     setCurrentChat: (chat: Chat | null) => void;
     handleIncomingMessage: (message: Message) => void; // Add this method to handle received messages
     loadCachedMessages: (chatId: number) => void;
 }
 
-export const useChatStore = create<ChatStore>((set) => ({
+export const useChatStore = create<ChatStore>((set, get) => ({
     chats: [],
     currentChat: null,
     loading: false,
@@ -55,18 +55,13 @@ export const useChatStore = create<ChatStore>((set) => ({
                 { withCredentials: true }
             );
             
-            // Ensure we have valid data with defaults
             const newChat: Chat = {
                 id: response.data.chatId,
                 participants: response.data.participants || [],
                 messages: response.data.messages || []
             };
 
-            console.log("Server response:", response.data);
-            console.log("Formatted chat:", newChat);
-
             set((state) => {
-                // Check if chat already exists
                 const chatExists = state.chats.some(chat => chat.id === newChat.id);
                 
                 return {
@@ -82,21 +77,14 @@ export const useChatStore = create<ChatStore>((set) => ({
             const socket = useUserStore.getState().socket;
             if (socket) {
                 socket.emit('join_chat', newChat.id);
-                socket.emit('get_cached_messages', newChat.id);
-                socket.once('cached_messages', (cachedMessages: Message[]) => {
-                    set(state => ({
-                        ...state,
-                        currentChat: {
-                            ...newChat,
-                            messages: cachedMessages
-                        }
-                    }));
-                });
             }
+            
+            return newChat; // Return the chat object
         } catch (error) {
             set({ loading: false });
             const axiosError = error as AxiosError<{ message: string }>;
             toast.error(axiosError.response?.data?.message || "Failed to start chat");
+            return null;
         }
     },
 
@@ -143,12 +131,10 @@ export const useChatStore = create<ChatStore>((set) => ({
     },
 
     handleIncomingMessage: (message: Message) => {
-        console.log('Handling incoming message:', message);
         const chatId = message.chat_id || message.chatId;
         const currentUser = useUserStore.getState().user;
         
         if (!chatId || !message.senderId) {
-            console.error('Invalid message format:', message);
             return;
         }
 
@@ -186,11 +172,16 @@ export const useChatStore = create<ChatStore>((set) => ({
         });
     },
 
-    loadCachedMessages: (chatId: number) => {
-        const socket = useUserStore.getState().socket;
-        if (socket) {
-            socket.emit('get_cached_messages', chatId);
-            socket.once('cached_messages', (messages: Message[]) => {
+    loadCachedMessages: async (chatId: number) => {
+        try {
+            const state = get();
+            const existingChat = state.chats.find(chat => chat.id === chatId);
+            
+            // Load messages if chat exists but has no messages or empty messages array
+            if (!existingChat?.messages || existingChat.messages.length === 0) {
+                const response = await axios.get(`http://localhost:5000/api/messages/get/${chatId}`);
+                const messages = response.data;
+
                 set(state => ({
                     chats: state.chats.map(chat => 
                         chat.id === chatId ? { ...chat, messages } : chat
@@ -199,7 +190,10 @@ export const useChatStore = create<ChatStore>((set) => ({
                         { ...state.currentChat, messages } : 
                         state.currentChat
                 }));
-            });
+            }
+        } catch (error) {
+            console.error('Failed to load messages:', error);
+            toast.error('Failed to load messages');
         }
     }
 }));

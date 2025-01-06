@@ -23,79 +23,77 @@ const formatTimestamp = (date: Date) => {
 export function ChatWindow({ contact }: ChatWindowProps) {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const { startIndividualChat, currentChat, sendMessage, handleIncomingMessage } = useChatStore();
+  const [hasInitialized, setHasInitialized] = useState(false);
+  const { startIndividualChat, currentChat, sendMessage, handleIncomingMessage, loadCachedMessages } = useChatStore();
   const { socket } = useUserStore();
   const currentUser = useUserStore((state) => state.user);
-  
+
+  // Chat initialization effect
   useEffect(() => {
-    setIsLoading(true);
+    let mounted = true;
+
     const initChat = async () => {
       try {
-        await startIndividualChat(contact.id);
+        setIsLoading(true);
+        const chat = await startIndividualChat(contact.id);
+        if (mounted && chat?.id) {
+          await loadCachedMessages(chat.id);
+        }
       } catch (error) {
         console.error('Failed to initialize chat:', error);
       } finally {
-        setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+          setHasInitialized(true);
+        }
       }
     };
-    
-    initChat();
-    
-    // Set up socket event listener for receiving messages
-    if (socket) {
-      socket.on('receive_message', (message) => {
-        console.log('Received message:', message);
-        if (currentChat) {
-          console.log('Current chat state:', {
-            id: currentChat.id,
-            participants: currentChat.participants,
-            messageCount: currentChat.messages?.length
-          });
-        }
-        handleIncomingMessage(message);
-      });
+
+    if (!hasInitialized) {
+      initChat();
     }
-    
-    // Cleanup function
+
     return () => {
-      if (socket) {
-        socket.off('receive_message');
-        if (currentChat) {
-          socket.emit('leave_chat', currentChat.id);
-        }
+      mounted = false;
+    };
+  }, [contact.id, startIndividualChat, loadCachedMessages]);
+
+  // Socket event handling effect
+  useEffect(() => {
+    if (!socket || !currentChat) return;
+
+    const handleMessage = (message: any) => {
+      if (message.chatId === currentChat.id || message.chat_id === currentChat.id) {
+        handleIncomingMessage(message);
       }
     };
-  }, [contact.id, startIndividualChat, socket]);
-  
-  // Debug current chat state
+
+    socket.on('receive_message', handleMessage);
+    socket.emit('join_chat', currentChat.id);
+
+    return () => {
+      socket.off('receive_message', handleMessage);
+      socket.emit('leave_chat', currentChat.id);
+    };
+  }, [socket, currentChat, handleIncomingMessage]);
+
+  // Remove or modify the debug effect to prevent unnecessary renders
   useEffect(() => {
-    if (currentChat) {
+    if (currentChat && !isLoading) {
       console.log('Chat state updated:', {
         id: currentChat.id,
-        participants: currentChat.participants || [],
-        messages: currentChat.messages || [],
-        messageCount: currentChat.messages?.length || 0
+        messageCount: currentChat.messages?.length || 0,
+        messages: currentChat.messages
       });
     }
-  }, [currentChat]);
-  
+  }, [currentChat, isLoading]);
+
   const handleonclick = () => {
     if (!message.trim()) return;
     
     if (currentChat) {
-      console.log('Chat state before sending:', {
-        currentChat,
-        messages: currentChat.messages
-      });
-      
       sendMessage(message, currentChat.id);
       setMessage('');
-      
-      // Log the chat state after sending
-      console.log('Chat state after sending:', {
-        currentChat,
-        messages: currentChat.messages
-      });
     }
   }
 
@@ -128,39 +126,63 @@ const handleKeyPress = (e: React.KeyboardEvent) => {
             <div className="text-center text-gray-400">Loading messages...</div>
           ) : currentChat && currentChat.messages && currentChat.messages.length > 0 ? (
             currentChat.messages.map((msg, index) => {
-              // Convert both IDs to numbers for comparison
-              const isCurrentUser = Number(msg.senderId) === Number(currentUser?.id);
+              // Normalize sender IDs to numbers
+              const msgSenderId = typeof msg.senderId === 'string' ? 
+                parseInt(msg.senderId) : 
+                msg.senderId || msg.sender_id; // Add fallback to sender_id
+              const currentUserId = typeof currentUser?.id === 'string' ? 
+                parseInt(currentUser.id) : 
+                currentUser?.id;
+              const isCurrentUser = msgSenderId === currentUserId;
+
+              // Get previous and next messages for grouping
               const previousMsg = index > 0 ? currentChat.messages[index - 1] : null;
-              const isNewSender = !previousMsg || previousMsg.senderId !== msg.senderId;
+              const prevSenderId = previousMsg ? 
+                (previousMsg.senderId || previousMsg.sender_id) : 
+                null;
               
+              const nextMsg = index < currentChat.messages.length - 1 ? 
+                currentChat.messages[index + 1] : 
+                null;
+              const nextSenderId = nextMsg ? 
+                (nextMsg.senderId || nextMsg.sender_id) : 
+                null;
+
+              // Determine message grouping
+              const isFirstInGroup = prevSenderId !== msgSenderId;
+              const isLastInGroup = nextSenderId !== msgSenderId;
+
+              // Enhanced bubble styles for better visual grouping
+              const bubbleStyle = isCurrentUser
+                ? `bg-blue-600 text-white 
+                   ${isFirstInGroup ? 'rounded-t-2xl rounded-bl-2xl' : 'rounded-bl-2xl'} 
+                   ${isLastInGroup ? 'rounded-br-sm' : ''} 
+                   ${!isFirstInGroup && !isLastInGroup ? '' : ''}`
+                : `bg-gray-700 text-white 
+                   ${isFirstInGroup ? 'rounded-t-2xl rounded-br-2xl' : 'rounded-br-2xl'} 
+                   ${isLastInGroup ? 'rounded-bl-sm' : ''} 
+                   ${!isFirstInGroup && !isLastInGroup ? '' : ''}`;
+
               return (
                 <div 
-                  key={msg.id}
-                  className={`flex flex-col ${
-                    isCurrentUser ? 'items-end' : 'items-start'
-                  } ${isNewSender ? 'mt-4' : 'mt-1'}`}
+                  key={msg.id || index}
+                  className={`flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'} 
+                    ${isFirstInGroup ? 'mt-4' : 'mt-0.5'}`}
                 >
-                  <div className={`
-                    max-w-[70%] 
-                    flex flex-col
-                    ${isCurrentUser ? 'items-end' : 'items-start'}
-                  `}>
-                    {isNewSender && !isCurrentUser && (
+                  <div className={`max-w-[70%] flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'}`}>
+                    {isFirstInGroup && !isCurrentUser && (
                       <span className="text-xs text-gray-400 ml-2 mb-1">
                         {contact.username}
                       </span>
                     )}
-                    <div className={`
-                      rounded-2xl px-4 py-2
-                      ${isCurrentUser 
-                        ? 'bg-blue-600 text-white rounded-br-sm' 
-                        : 'bg-gray-700 text-white rounded-bl-sm'}
-                    `}>
+                    <div className={`px-4 py-2 ${bubbleStyle}`}>
                       {msg.content}
                     </div>
-                    <span className="text-xs text-gray-400 mt-1 mx-2">
-                      {formatTimestamp(msg.createdAt || new Date())}
-                    </span>
+                    {isLastInGroup && (
+                      <span className="text-xs text-gray-400 mt-1 mx-2">
+                        {formatTimestamp(msg.createdAt || new Date(msg.created_at || Date.now()))}
+                      </span>
+                    )}
                   </div>
                 </div>
               );
