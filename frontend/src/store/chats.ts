@@ -2,6 +2,7 @@ import { create } from "zustand";
 import axios, { AxiosError } from "axios";
 import { toast } from "react-hot-toast";
 import { useUserStore } from "./user";
+// import { console } from "inspector";
 
 axios.defaults.withCredentials = true;
 
@@ -11,10 +12,20 @@ interface Message {
     senderId: number;
     content: string;
     createdAt?: Date;
+    chat_id?: number;  // Add this to match server response
+    created_at?: string;  // Add this to match server response
+    is_read?: boolean;  // Add this to match server response
 }
 
 interface Chat {
     id: number;
+    participants: number[];
+    messages: Message[];
+}
+
+// Add this interface after the existing interfaces
+interface ServerChatResponse {
+    chatId: number;
     participants: number[];
     messages: Message[];
 }
@@ -26,9 +37,11 @@ interface ChatStore {
     startIndividualChat: (receiverId: string) => Promise<void>;
     sendMessage: (content: string, chatId: number) => void;
     setCurrentChat: (chat: Chat | null) => void;
+    handleIncomingMessage: (message: Message) => void; // Add this method to handle received messages
+    loadCachedMessages: (chatId: number) => void;
 }
 
-export const useChatStore = create<ChatStore>((set, get) => ({
+export const useChatStore = create<ChatStore>((set) => ({
     chats: [],
     currentChat: null,
     loading: false,
@@ -36,25 +49,50 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     startIndividualChat: async (receiverId: string) => {
         set({ loading: true });
         try {
-            const response = await axios.post(
+            const response = await axios.post<ServerChatResponse>(
                 "http://localhost:5000/api/chats/individualchat",
                 { receiverId },
                 { withCredentials: true }
             );
             
-            const newChat = response.data;
-            set((state) => ({
-                chats: [...state.chats, newChat],
-                currentChat: newChat,
-                loading: false
-            }));
+            // Ensure we have valid data with defaults
+            const newChat: Chat = {
+                id: response.data.chatId,
+                participants: response.data.participants || [],
+                messages: response.data.messages || []
+            };
 
-            // Join the chat room via socket from UserStore
+            console.log("Server response:", response.data);
+            console.log("Formatted chat:", newChat);
+
+            set((state) => {
+                // Check if chat already exists
+                const chatExists = state.chats.some(chat => chat.id === newChat.id);
+                
+                return {
+                    chats: chatExists 
+                        ? state.chats.map(chat => chat.id === newChat.id ? newChat : chat)
+                        : [...state.chats, newChat],
+                    currentChat: newChat,
+                    loading: false
+                };
+            });
+
+            // Join the chat room via socket
             const socket = useUserStore.getState().socket;
             if (socket) {
-                socket.emit('join_chat', newChat.chatId);
+                socket.emit('join_chat', newChat.id);
+                socket.emit('get_cached_messages', newChat.id);
+                socket.once('cached_messages', (cachedMessages: Message[]) => {
+                    set(state => ({
+                        ...state,
+                        currentChat: {
+                            ...newChat,
+                            messages: cachedMessages
+                        }
+                    }));
+                });
             }
-            console.log("Chat started:", newChat);
         } catch (error) {
             set({ loading: false });
             const axiosError = error as AxiosError<{ message: string }>;
@@ -64,47 +102,30 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     sendMessage: async (content: string, chatId: number) => {
         const socket = useUserStore.getState().socket;
-        console.log('Attempting to send message:', { content, chatId, socketExists: !!socket });
+        const currentUser = useUserStore.getState().user;
         
-        if (!socket) {
-            console.error('Socket connection not available');
-            toast.error("No socket connection");
+        if (!socket || !currentUser) {
+            console.error('Socket connection or user not available');
+            toast.error("Connection error");
             return;
         }
 
         try {
-            console.log('Making API request to save message');
             const response = await axios.post(
                 `http://localhost:5000/api/messages/send/${chatId}`,
-                { content },
+                { 
+                    content,
+                    senderId: currentUser.id // Explicitly send the senderId
+                },
                 { withCredentials: true }
             );
-
-            const savedMessage = response.data;
-            console.log('Message saved successfully:', savedMessage);
-
-            socket.emit('send_message', savedMessage);
-            console.log('Message emitted to socket:', savedMessage);
             
-            set((state) => {
-                console.log('Updating local state with new message');
-                return {
-                    chats: state.chats.map(chat => {
-                        if (chat.id === chatId) {
-                            console.log('Found matching chat, updating messages');
-                            return {
-                                ...chat,
-                                messages: [...chat.messages, savedMessage]
-                            };
-                        }
-                        return chat;
-                    }),
-                    currentChat: state.currentChat?.id === chatId ? {
-                        ...state.currentChat,
-                        messages: [...state.currentChat.messages, savedMessage]
-                    } : state.currentChat
-                };
-            });
+            const savedMessage = {
+                ...response.data,
+                senderId: currentUser.id // Ensure senderId is set
+            };
+            
+            socket.emit('send_message', savedMessage);
 
         } catch (error) {
             const axiosError = error as AxiosError<{ message: string }>;
@@ -118,6 +139,67 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const socket = useUserStore.getState().socket;
         if (socket && chat) {
             socket.emit('join_chat', chat.id);
+        }
+    },
+
+    handleIncomingMessage: (message: Message) => {
+        console.log('Handling incoming message:', message);
+        const chatId = message.chat_id || message.chatId;
+        const currentUser = useUserStore.getState().user;
+        
+        if (!chatId || !message.senderId) {
+            console.error('Invalid message format:', message);
+            return;
+        }
+
+        set((state: ChatStore) => {
+            const formattedMessage: Message = {
+                id: message.id,
+                chatId: chatId,
+                senderId: message.senderId,
+                content: message.content,
+                createdAt: message.created_at ? new Date(message.created_at) : 
+                          message.createdAt || new Date(),
+                is_read: message.is_read
+            };
+
+            const updatedChats = state.chats.map(chat => {
+                if (chat.id === chatId) {
+                    return {
+                        ...chat,
+                        messages: [...chat.messages, formattedMessage]
+                    };
+                }
+                return chat;
+            });
+
+            const updatedCurrentChat = state.currentChat?.id === chatId ? {
+                ...state.currentChat,
+                messages: [...state.currentChat.messages, formattedMessage]
+            } : state.currentChat;
+
+            return {
+                ...state,
+                chats: updatedChats,
+                currentChat: updatedCurrentChat
+            };
+        });
+    },
+
+    loadCachedMessages: (chatId: number) => {
+        const socket = useUserStore.getState().socket;
+        if (socket) {
+            socket.emit('get_cached_messages', chatId);
+            socket.once('cached_messages', (messages: Message[]) => {
+                set(state => ({
+                    chats: state.chats.map(chat => 
+                        chat.id === chatId ? { ...chat, messages } : chat
+                    ),
+                    currentChat: state.currentChat?.id === chatId ? 
+                        { ...state.currentChat, messages } : 
+                        state.currentChat
+                }));
+            });
         }
     }
 }));

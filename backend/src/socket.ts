@@ -2,12 +2,17 @@ import { Server as socketioserver } from 'socket.io';
 import { Server } from 'http';
 
 interface SocketMessage {
+    id?: number;
     chatId: number;
     senderId: number;
     content: string;
+    createdAt?: Date;
+    chat_id?: number;
+    created_at?: string;
+    is_read?: boolean;
 }
 
-const onlineUsers = new Map(); // userId -> socketId
+const onlineUsers = new Map();
 
 let io: socketioserver;
 
@@ -35,8 +40,12 @@ export const initializeSocket = (server: Server) => {
         });
 
         socket.on('join_chat', (chatId) => {
-            socket.join(`chat:${chatId}`);
-            console.log(`User with socket ${socket.id} joined chat room: chat:${chatId}`);
+            const roomName = `chat:${chatId}`;
+            socket.join(roomName);
+            console.log(`User ${socket.id} joined room ${roomName}`);
+            // Log all clients in this room
+            const clients = io.sockets.adapter.rooms.get(roomName);
+            console.log(`Clients in room ${roomName}:`, Array.from(clients || []));
         });
 
         socket.on('leave_chat', (chatId) => {
@@ -44,10 +53,23 @@ export const initializeSocket = (server: Server) => {
             console.log(`User with socket ${socket.id} left chat room: chat:${chatId}`);
         });
 
-        // Only relay messages in real-time
         socket.on('send_message', (message: SocketMessage) => {
-            console.log('Message received:', message);
-            io.to(`chat:${message.chatId}`).emit('receive_message', message);
+            console.log('Message received on server:', message);
+            const chatId = message.chat_id || message.chatId;
+            
+            if (!chatId || !message.senderId) {
+                console.error('Invalid message format:', message);
+                return;
+            }
+
+            // Broadcast to room (including sender)
+            io.to(`chat:${chatId}`).emit('receive_message', {
+                ...message,
+                chatId: chatId,
+                senderId: message.senderId, // Ensure senderId is included
+                created_at: message.created_at || new Date().toISOString(),
+                is_read: false
+            });
         });
 
         socket.on('disconnect', () => {

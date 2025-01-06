@@ -4,7 +4,7 @@ import protectRoute from "../middleware/ProtectRoute";
 
 const router = Router();
 
-router.post('/send/?chatId', protectRoute, sendMessages);
+router.post('/send/:chatId', protectRoute, sendMessages);
 router.get('/get', protectRoute, getMessages);
 
 export default router;
