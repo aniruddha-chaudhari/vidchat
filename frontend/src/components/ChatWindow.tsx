@@ -126,28 +126,63 @@ const handleKeyPress = (e: React.KeyboardEvent) => {
             <div className="text-center text-gray-400">Loading messages...</div>
           ) : currentChat && currentChat.messages && currentChat.messages.length > 0 ? (
             currentChat.messages.map((msg, index) => {
-              // Ensure both IDs are converted to numbers for comparison
-              const isCurrentUser = Number(msg.senderId) === Number(currentUser?.id);
-              console.log('Message:', {
-                msgSenderId: Number(msg.senderId),
-                currentUserId: Number(currentUser?.id),
-                isCurrentUser
-              }); // Add this debug log
+              // Normalize sender IDs to numbers
+              const msgSenderId = typeof msg.senderId === 'string' ? 
+                parseInt(msg.senderId) : 
+                msg.senderId || msg.sender_id; // Add fallback to sender_id
+              const currentUserId = typeof currentUser?.id === 'string' ? 
+                parseInt(currentUser.id) : 
+                currentUser?.id;
+              const isCurrentUser = msgSenderId === currentUserId;
+
+              // Get previous and next messages for grouping
+              const previousMsg = index > 0 ? currentChat.messages[index - 1] : null;
+              const prevSenderId = previousMsg ? 
+                (previousMsg.senderId || previousMsg.sender_id) : 
+                null;
               
+              const nextMsg = index < currentChat.messages.length - 1 ? 
+                currentChat.messages[index + 1] : 
+                null;
+              const nextSenderId = nextMsg ? 
+                (nextMsg.senderId || nextMsg.sender_id) : 
+                null;
+
+              // Determine message grouping
+              const isFirstInGroup = prevSenderId !== msgSenderId;
+              const isLastInGroup = nextSenderId !== msgSenderId;
+
+              // Enhanced bubble styles for better visual grouping
+              const bubbleStyle = isCurrentUser
+                ? `bg-blue-600 text-white 
+                   ${isFirstInGroup ? 'rounded-t-2xl rounded-bl-2xl' : 'rounded-bl-2xl'} 
+                   ${isLastInGroup ? 'rounded-br-sm' : ''} 
+                   ${!isFirstInGroup && !isLastInGroup ? '' : ''}`
+                : `bg-gray-700 text-white 
+                   ${isFirstInGroup ? 'rounded-t-2xl rounded-br-2xl' : 'rounded-br-2xl'} 
+                   ${isLastInGroup ? 'rounded-bl-sm' : ''} 
+                   ${!isFirstInGroup && !isLastInGroup ? '' : ''}`;
+
               return (
                 <div 
                   key={msg.id || index}
-                  className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-4`}
+                  className={`flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'} 
+                    ${isFirstInGroup ? 'mt-4' : 'mt-0.5'}`}
                 >
-                  <div className={`px-4 py-2 max-w-[80%] rounded-2xl ${
-                    isCurrentUser 
-                      ? 'bg-blue-600 text-white rounded-tr-sm' 
-                      : 'bg-gray-700 text-white rounded-tl-sm'
-                  }`}>
-                    {msg.content}
-                    <div className="text-xs text-gray-300 mt-1">
-                      {formatTimestamp(new Date(msg.createdAt || Date.now()))}
+                  <div className={`max-w-[70%] flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'}`}>
+                    {isFirstInGroup && !isCurrentUser && (
+                      <span className="text-xs text-gray-400 ml-2 mb-1">
+                        {contact.username}
+                      </span>
+                    )}
+                    <div className={`px-4 py-2 ${bubbleStyle}`}>
+                      {msg.content}
                     </div>
+                    {isLastInGroup && (
+                      <span className="text-xs text-gray-400 mt-1 mx-2">
+                        {formatTimestamp(msg.createdAt || new Date(msg.created_at || Date.now()))}
+                      </span>
+                    )}
                   </div>
                 </div>
               );

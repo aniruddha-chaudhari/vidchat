@@ -54,14 +54,11 @@ export const initializeSocket = (server: Server) => {
                 return;
             }
 
-            // Standardize the message format
             const standardizedMessage = {
-                id: message.id,
+                ...message,
                 chatId: chatId,
-                senderId: message.senderId,
-                content: message.content,
-                createdAt: new Date().toISOString(),
-                isRead: false
+                created_at: new Date().toISOString(),
+                is_read: false
             };
 
             // Emit to all users in the chat room
