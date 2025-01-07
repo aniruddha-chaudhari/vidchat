@@ -126,10 +126,8 @@ const handleKeyPress = (e: React.KeyboardEvent) => {
             <div className="text-center text-gray-400">Loading messages...</div>
           ) : currentChat && currentChat.messages && currentChat.messages.length > 0 ? (
             currentChat.messages.map((msg, index) => {
-              // Normalize sender IDs to numbers
-              const msgSenderId = typeof msg.senderId === 'string' ? 
-                parseInt(msg.senderId) : 
-                msg.senderId || msg.sender_id; // Add fallback to sender_id
+              // Normalize sender ID
+              const msgSenderId = msg.sender_id || msg.senderId;
               const currentUserId = typeof currentUser?.id === 'string' ? 
                 parseInt(currentUser.id) : 
                 currentUser?.id;
@@ -138,14 +136,14 @@ const handleKeyPress = (e: React.KeyboardEvent) => {
               // Get previous and next messages for grouping
               const previousMsg = index > 0 ? currentChat.messages[index - 1] : null;
               const prevSenderId = previousMsg ? 
-                (previousMsg.senderId || previousMsg.sender_id) : 
+                (previousMsg.sender_id || previousMsg.senderId) : 
                 null;
               
               const nextMsg = index < currentChat.messages.length - 1 ? 
                 currentChat.messages[index + 1] : 
                 null;
               const nextSenderId = nextMsg ? 
-                (nextMsg.senderId || nextMsg.sender_id) : 
+                (nextMsg.sender_id || nextMsg.senderId) : 
                 null;
 
               // Determine message grouping

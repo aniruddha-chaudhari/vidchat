@@ -10,6 +10,7 @@ interface Message {
     id?: number;
     chatId: number;
     senderId: number;
+    sender_id?: number; // Add this for backend compatibility
     content: string;
     createdAt?: Date;
     chat_id?: number;  // Add this to match server response
@@ -132,9 +133,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     handleIncomingMessage: (message: Message) => {
         const chatId = message.chat_id || message.chatId;
-        const currentUser = useUserStore.getState().user;
+        const senderId = message.sender_id || message.senderId;
         
-        if (!chatId || !message.senderId) {
+        if (!chatId || !senderId) {
             return;
         }
 
@@ -142,7 +143,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             const formattedMessage: Message = {
                 id: message.id,
                 chatId: chatId,
-                senderId: message.senderId,
+                senderId: senderId,
                 content: message.content,
                 createdAt: message.created_at ? new Date(message.created_at) : 
                           message.createdAt || new Date(),
